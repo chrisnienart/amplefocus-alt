@@ -1,0 +1,6 @@
+#!/bin/bash
+npm run build
+git add .
+git commit -m "Build compiled by Ruby script"
+git push
+echo "Successfully built & pushed to GitHub"
