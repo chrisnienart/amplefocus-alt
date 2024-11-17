@@ -13,7 +13,7 @@
   "main": "lib/index.js",
   "name": "plugin-builder",
   "scripts": {
-    "build": "node esbuild.js",
+    "build": "node esbuild.mjs",
     "test": "jest"
   },
   "testEnvironment": "jsdom",
