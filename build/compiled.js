@@ -577,15 +577,16 @@
     console.log(`STATE: ${state} => ${newState}`);
     state = newState;
   }
-  var currentSessionCycle2;
-  var sessionCycleCount2;
+  var endTime;
+  var currentSessionCycle;
+  var sessionCycleCount;
   var sessionStartTime;
-  var sessionEndTime2;
+  var sessionEndTime;
   var sleepUntil;
-  var status2;
-  var energyValues2 = [];
-  var moraleValues2 = [];
-  var completionValues2 = [];
+  var status;
+  var energyValues = [];
+  var moraleValues = [];
+  var completionValues = [];
   function pauseSession() {
     changeState("PAUSED");
   }
@@ -604,7 +605,7 @@
   function setSignal(newSignal) {
     signal = newSignal;
   }
-  var runningCriticalCode2;
+  var runningCriticalCode;
   var markSafeToExit;
   var starting;
   var markStarted;
@@ -617,12 +618,12 @@
     });
   }
   function initAmplefocus(app, options) {
-    moraleValues2 = [];
-    energyValues2 = [];
-    completionValues2 = [];
+    moraleValues = [];
+    energyValues = [];
+    completionValues = [];
     changeState("NEW");
     timerController = new AbortController();
-    runningCriticalCode2 = new Promise((resolve) => {
+    runningCriticalCode = new Promise((resolve) => {
       markSafeToExit = () => {
         changeState("SAFE");
         resolve();
@@ -665,9 +666,9 @@
       );
       if (result === "resume") {
         await _appendToNote(app, "");
-        sessionCycleCount2 = isSessionRunning["Cycle Count"];
+        sessionCycleCount = isSessionRunning["Cycle Count"];
         sessionStartTime = new Date(isSessionRunning["Start Time"]);
-        sessionEndTime2 = _calculateEndTime(options, sessionStartTime, sessionCycleCount2).endTime;
+        sessionEndTime = _calculateEndTime(options, sessionStartTime, sessionCycleCount).endTime;
         let oldStartTime = new Date(isSessionRunning["Start Time"]);
         if (_calculateEndTime(options, oldStartTime, isSessionRunning["Cycle Count"]).endTime > _getCurrentTime()) {
           console.log("Continuing previous uncompleted session.");
@@ -708,9 +709,9 @@
     }
   }
   async function _focus(app, options, dash, startTime, cycleCount, handlePastCycles = false) {
-    sessionCycleCount2 = cycleCount;
+    sessionCycleCount = cycleCount;
     sessionStartTime = startTime;
-    sessionEndTime2 = _calculateEndTime(options, startTime, cycleCount).endTime;
+    sessionEndTime = _calculateEndTime(options, startTime, cycleCount).endTime;
     const newRow = {
       // "Session ID": Math.max(dash.map(e => e["Session ID"])) + 1,
       "Source Note": _makeNoteLink(await app.findNote({ uuid: app.context.noteUUID })),
@@ -758,14 +759,14 @@
       sessionHeadingName = sessionHeadingName.slice(2);
       console.log("Created new session heading", sessionHeadingName);
       prompt = true;
-      status2 = "Waiting for session to start...";
+      status = "Waiting for session to start...";
     }
     workEndTime = /* @__PURE__ */ new Date();
     breakEndTime = firstCycleStartTime;
     console.log("Work end time", workEndTime);
     console.log(`firstCycle: ${firstCycle}, cycles: ${cycles}`, firstCycle, cycles);
     for (let currentCycle = firstCycle - 1; currentCycle <= cycles; currentCycle++) {
-      currentSessionCycle2 = currentCycle;
+      currentSessionCycle = currentCycle;
       console.log("Cycle loop", currentCycle);
       try {
         await _handleWorkPhase(app, workEndTime, currentCycle);
@@ -774,7 +775,7 @@
           break;
       }
       if (currentCycle >= 1)
-        status2 = "Take a break...";
+        status = "Take a break...";
       try {
         if (currentCycle >= firstCycle) {
           prompt = true;
@@ -784,18 +785,18 @@
         if (handleAbortSignal(error))
           break;
       }
-      status2 = "Working...";
+      status = "Working...";
       workEndTime = new Date(breakEndTime.getTime() + options.workDuration);
       breakEndTime = new Date(workEndTime.getTime() + options.breakDuration);
       if (timerController.signal.aborted) {
         timerController = new AbortController();
       }
     }
-    status2 = "Session finished. \u{1F389}";
+    status = "Session finished. \u{1F389}";
     if (state !== "PAUSED") {
       await _writeEndTime(app, options, dash);
     } else {
-      status2 = "Session paused...";
+      status = "Session paused...";
     }
   }
   async function _makeSessionHeading(app, startTime, cycleCount) {
@@ -835,11 +836,11 @@
     if (error.name === "AbortError") {
       if (signal === "cancel") {
         console.log("Session canceled");
-        status2 = "Session cancelled";
+        status = "Session cancelled";
         return true;
       } else if (signal === "pause") {
         console.log("Session paused");
-        status2 = "Session paused";
+        status = "Session paused";
         return true;
       } else if (signal === "end-cycle") {
         console.log("Cycle ended early");
@@ -892,9 +893,9 @@
     tableDict = await _appendToTopTableCell(tableDict, "Energy Logs", energy);
     tableDict = await _appendToTopTableCell(tableDict, "Morale Logs", morale);
     tableDict = await _appendToTopTableCell(tableDict, "Completion Logs", completion);
-    energyValues2 = _getTopTableCell(tableDict, "Energy Logs").split(",");
-    moraleValues2 = _getTopTableCell(tableDict, "Morale Logs").split(",");
-    completionValues2 = _getTopTableCell(tableDict, "Completion Logs").split(",");
+    energyValues = _getTopTableCell(tableDict, "Energy Logs").split(",");
+    moraleValues = _getTopTableCell(tableDict, "Morale Logs").split(",");
+    completionValues = _getTopTableCell(tableDict, "Completion Logs").split(",");
     await writeDashboard(app, options, dash, tableDict);
   }
   async function _handleNextCycleStart(app, nextCycle, options) {
@@ -981,13 +982,13 @@ ${content}`);
       ampletime: { project: null },
       amplefocus: {
         sleepUntil: endTime2,
-        currentCycle: currentSessionCycle2,
-        cycleCount: sessionCycleCount2,
-        sessionEnd: sessionEndTime2,
-        status: status2,
-        moraleValues: moraleValues2,
-        energyValues: energyValues2,
-        completionValues: completionValues2
+        currentCycle: currentSessionCycle,
+        cycleCount: sessionCycleCount,
+        sessionEnd: sessionEndTime,
+        status,
+        moraleValues,
+        energyValues,
+        completionValues
       }
     });
     const sleepTime = endTime2.getTime() - _getCurrentTime().getTime();
