@@ -2346,4 +2346,5 @@ ${content}`);
     }
   };
   var plugin_default = plugin;
-})();
+  return plugin;
+})()

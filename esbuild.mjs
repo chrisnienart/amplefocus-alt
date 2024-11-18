@@ -1,11 +1,12 @@
-import dotenv from "dotenv"
-import esbuild from "esbuild"
+import dotenv from "dotenv";
+import esbuild from "esbuild";
+import * as fs from 'fs';
 
 dotenv.config();
 
 async function build() {
     try {
-        const result = await esbuild.build({
+        let result = await esbuild.build({
             entryPoints: [`lib/plugin.js`],
             bundle: true,
             format: "iife",
@@ -14,7 +15,14 @@ async function build() {
             platform: "node",
             write: true,
         });
-        console.log("Build result", result);
+
+        // Modify the generated file to append "return plugin;"
+        const outputPath = "build/compiled.js";
+        const content = fs.readFileSync(outputPath, 'utf8');
+        const modifiedContent = content.replace(/\s*}\)\(\);/, "\n  return plugin;\n})()");
+        fs.writeFileSync(outputPath, modifiedContent);
+
+        console.log("Build completed successfully");
     } catch (error) {
         console.error("Build failed:", error);
         process.exit(1);
