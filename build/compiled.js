@@ -809,12 +809,12 @@
     return `# **\\[${timestamp}\\]** ${focusNoteLink} for ${cycleCount} cycles`;
   }
   async function _getFocusNote(app) {
-    const focusNotes = await app.filterNotes({ tag: "plugins/amplework/focus" });
+    const focusNotes = await app.filterNotes({ tag: "plugins/amplefocus-alt/focus" });
     let focusNote;
     if (focusNotes.length > 0) {
       focusNote = focusNotes[0];
     } else {
-      let focusNoteUUID = await app.createNote("Focus", ["focus"]);
+      let focusNoteUUID = await app.createNote("Focus", ["plugins/amplefocus-alt/focus"]);
       focusNote = await app.findNote({ uuid: focusNoteUUID });
     }
     return focusNote;
@@ -1505,8 +1505,8 @@ ${content}`);
     options: {
       ampletime: {
         noteTitleDashboard: "Time Tracker Dashboard",
-        noteTagDashboard: "amplework/tracking",
-        noteTagReports: "amplework/tracking/reports",
+        noteTagDashboard: "plugins/amplefocus-alt/tracking",
+        noteTagReports: "plugins/amplefocus-alt/tracking/reports",
         sectionTitleDashboardEntries: "Time entries",
         dashboardColumns: ["Project Name", "Task Name", "Start Time", "End Time"],
         noteTitleReportDaily: "Ampletime Daily: Tracked",
@@ -1566,7 +1566,7 @@ ${content}`);
           "Load questions (yes/no)": "loadQuestions"
         },
         noteTitleDashboard: "Focus Dashboard",
-        noteTagDashboard: "plugins/amplefocus",
+        noteTagDashboard: "plugins/amplefocus-alt",
         sectionTitleDashboardEntries: "Sessions",
         dashboardColumns: [
           "Source Note",
