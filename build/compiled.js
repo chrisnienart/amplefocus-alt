@@ -632,8 +632,14 @@
     for (let pair of Object.entries(options.settings)) {
       let setting = pair[0];
       let option = pair[1];
-      if (app.settings[setting]) {
+      if (app.settings[setting] && setting.includes("duration")) {
         options[option] = app.settings[setting] * 60 * 1e3;
+        console.log("convert duration to ms", option, options[option]);
+      } else if (app.settings[setting] && setting.includes("boolean")) {
+        options[option] = app.settings[setting] === "true";
+        console.log("convert loadNoteText to boolean", option, options[option]);
+      } else {
+        options[option] = app.settings[setting];
       }
     }
     markStopped();
@@ -665,7 +671,9 @@
         }
       );
       if (result === "resume") {
-        await _appendToNote(app, "");
+        if (options.loadNoteText) {
+          await _appendToNote(app, "");
+        }
         sessionCycleCount = isSessionRunning["Cycle Count"];
         sessionStartTime = new Date(isSessionRunning["Start Time"]);
         sessionEndTime = _calculateEndTime(options, sessionStartTime, sessionCycleCount).endTime;
@@ -727,7 +735,9 @@
     await _logStartTime(app, dash, newRow, options);
     let sessionHeadingText = await _makeSessionHeading(app, startTime, cycleCount);
     markAddress(sessionHeadingText, app.context.noteUUID);
-    await _insertSessionOverview(app, options, sessionHeadingText);
+    if (options.loadNoteText) {
+      await _insertSessionOverview(app, options, sessionHeadingText);
+    }
     await _startSession(app, options, dash, startTime, Number(cycleCount), 1, false, handlePastCycles);
     markSafeToExit();
   }
@@ -780,7 +790,9 @@
         if (currentCycle >= firstCycle) {
           prompt = true;
         }
-        await _handleBreakPhase(app, options, dash, breakEndTime, currentCycle, cycles, handlePastCycles, prompt);
+        if (options.loadNoteText) {
+          await _handleBreakPhase(app, options, dash, breakEndTime, currentCycle, cycles, handlePastCycles, prompt);
+        }
       } catch (error) {
         if (handleAbortSignal(error))
           break;
@@ -936,20 +948,22 @@ ${content}`);
     if (previousCycle >= 1) {
       await _handleCycleEndJotEntry(options, app, previousCycle);
     }
-    if (previousCycle < cycles) {
+    if (previousCycle < cycles && options.loadNoteText) {
       await _handleNextCycleStart(app, currentCycle, options);
     }
   }
-  async function _handleBreakPhase(app, options, dash, breakEndTime, cycleIndex, cycles, handlePastCylces = false, prompt = true) {
+  async function _handleBreakPhase(app, options, dash, breakEndTime, cycleIndex, cycles, handlePastCycles = false, prompt = true) {
     let previousCycle, currentCycle, energy, morale, completion;
     let currentTime = _getCurrentTime();
     previousCycle = cycleIndex;
     currentCycle = cycleIndex + 1;
     await _logDashboardCycleProgress(app, dash, previousCycle, options);
     let currentCycleEndTime = new Date(breakEndTime.getTime() + options.workDuration);
-    if (currentCycleEndTime > currentTime || handlePastCylces) {
+    if (currentCycleEndTime > currentTime || handlePastCycles) {
       if (prompt) {
-        await _logJotPreviousAndNextCycleQuestions(previousCycle, app, dash, options, cycles, currentCycle);
+        if (options.loadNoteText) {
+          await _logJotPreviousAndNextCycleQuestions(previousCycle, app, dash, options, cycles, currentCycle);
+        }
         [completion, energy, morale] = await _promptCycleEndMetrics(options, app, previousCycle);
         await _logDashboardCycleEndMetrics(app, dash, energy, morale, completion, options);
       }
@@ -957,7 +971,9 @@ ${content}`);
       await _logDashboardCycleEndMetrics(app, dash, null, null, null, options);
     }
     if (previousCycle === cycles) {
-      await _handleSessionDebrief(app, options);
+      if (options.loadNoteText) {
+        await _handleSessionDebrief(app, options);
+      }
       await _sleepUntil(app, /* @__PURE__ */ new Date());
       console.log(`Session complete.`);
       app.alert(`Session complete. Debrief and relax.`);
@@ -1563,7 +1579,7 @@ ${content}`);
         settings: {
           "Work phase duration (in minutes)": "workDuration",
           "Break phase duration (in minutes)": "breakDuration",
-          "Load questions (yes/no)": "loadQuestions"
+          "Load note text (boolean: true/false)": "loadNoteText"
         },
         noteTitleDashboard: "Focus Dashboard",
         noteTagDashboard: "plugins/amplefocus-alt",
@@ -1586,6 +1602,7 @@ ${content}`);
         // ms
         breakDuration: 10 * 60 * 1e3,
         // ms
+        loadNoteText: false,
         alwaysStopRunningTask: false,
         alwaysResumeOpenTask: false,
         initialQuestions: [
