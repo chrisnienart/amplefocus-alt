@@ -790,9 +790,7 @@
         if (currentCycle >= firstCycle) {
           prompt = true;
         }
-        if (options.loadNoteText) {
-          await _handleBreakPhase(app, options, dash, breakEndTime, currentCycle, cycles, handlePastCycles, prompt);
-        }
+        await _handleBreakPhase(app, options, dash, breakEndTime, currentCycle, cycles, handlePastCycles, prompt);
       } catch (error) {
         if (handleAbortSignal(error))
           break;
@@ -879,7 +877,11 @@
   async function _promptCycleEndMetrics(options, app, currentCycle) {
     let completion, energy, morale, cycleTarget;
     if (currentCycle >= 1) {
-      cycleTarget = await _getPastCycleTarget(app, currentCycle, options);
+      if (options.loadNoteText) {
+        cycleTarget = await _getPastCycleTarget(app, currentCycle, options);
+      } else {
+        cycleTarget = "";
+      }
       [completion, energy, morale] = await _promptCompletionEnergyMorale(
         app,
         "Work phase completed. Did you complete the target for this cycle?",
@@ -948,7 +950,7 @@ ${content}`);
     if (previousCycle >= 1) {
       await _handleCycleEndJotEntry(options, app, previousCycle);
     }
-    if (previousCycle < cycles && options.loadNoteText) {
+    if (previousCycle < cycles) {
       await _handleNextCycleStart(app, currentCycle, options);
     }
   }
