@@ -14,7 +14,7 @@
   "name": "plugin-builder",
   "scripts": {
     "build": "node esbuild.mjs",
-    "test": "jest"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "testEnvironment": "jsdom",
   "type": "module",
