@@ -1,7 +1,8 @@
 # Amplefocus *Alternative*
+tl dr; Download the plugin [here]()
 
 This is an [Amplenote plugin](https://www.amplenote.com/help/developing_amplenote_plugins) that
-makes gives an alternative setup to the official [Amplefocus plugin](https://public.amplenote.com/XqCZ5b6qfsXQPRM8ZJRo8CrF).
+gives an alternative setup to the official [Amplefocus plugin](https://public.amplenote.com/XqCZ5b6qfsXQPRM8ZJRo8CrF).
 
 ## Changes from the original plugin
 ### November 2024
@@ -11,3 +12,5 @@ makes gives an alternative setup to the official [Amplefocus plugin](https://pub
 - Logging is stored under the tag `plugins/amplefocus-alt`
 - Added `loadNoteText` option for Amplefocus questions
   - Note logging is set to `false` by default
+
+![img.png](img.png)
