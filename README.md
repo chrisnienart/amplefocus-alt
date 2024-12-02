@@ -1,5 +1,5 @@
 # Amplefocus *Alternative*
-tl dr; Download the plugin [here]()
+tl dr; Download the plugin [here](https://public.amplenote.com/GY8AybxPdegbe3i3Gmx3kJHF)
 
 This is an [Amplenote plugin](https://www.amplenote.com/help/developing_amplenote_plugins) that
 gives an alternative setup to the official [Amplefocus plugin](https://public.amplenote.com/XqCZ5b6qfsXQPRM8ZJRo8CrF).
