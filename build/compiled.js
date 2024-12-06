@@ -525,6 +525,52 @@
     }
     return [startTime, cycleCount];
   }
+  async function _promptCustomizeSettingBySession(app, options, forcePrompt = false) {
+    if (!forcePrompt) {
+      if (!options.customizeSettingsBySession) {
+        return;
+      }
+    }
+    let promptInput = [];
+    promptInput.push({
+      label: "Customize Settings",
+      type: "checkbox",
+      value: options.customizeSettingsBySession
+    });
+    promptInput.push({
+      label: "Load note text",
+      type: "checkbox",
+      value: options.loadNoteText
+    });
+    promptInput.push({
+      label: "Work Duration (in minutes)",
+      type: "number",
+      value: options.workDuration
+    });
+    promptInput.push({
+      label: "Break Duration (in minutes)",
+      type: "number",
+      value: options.breakDuration
+    });
+    promptInput.push({
+      label: "End Cycle Warning Duration (in minutes)",
+      type: "number",
+      value: options.endCycleWarningDuration
+    });
+    let result = await app.prompt(
+      {
+        inputs: promptInput
+      }
+    );
+    if (result === null) {
+      return;
+    }
+    options.customizeSettingsBySession = result[0].value;
+    options.loadNoteText = result[1].value;
+    options.workDuration = result[2].value;
+    options.breakDuration = result[3].value;
+    options.endCycleWarningDuration = result[4].value;
+  }
 
   // lib/utils.js
   function bellSound() {
@@ -632,12 +678,12 @@
     for (let pair of Object.entries(options.settings)) {
       let setting = pair[0];
       let option = pair[1];
-      if (app.settings[setting] && setting.includes("duration")) {
+      if (app.settings[setting] && setting.includes("number") && setting.includes("minutes")) {
         options[option] = app.settings[setting] * 60 * 1e3;
-        console.log("convert duration to ms", option, options[option]);
+        console.log("convert number from minutes to ms", option, options[option]);
       } else if (app.settings[setting] && setting.includes("boolean")) {
         options[option] = app.settings[setting] === "true";
-        console.log("convert loadNoteText to boolean", option, options[option]);
+        console.log("convert string to boolean", option, options[option]);
       } else {
         options[option] = app.settings[setting];
       }
@@ -1579,9 +1625,11 @@ ${content}`);
       },
       amplefocus: {
         settings: {
-          "Work phase duration (in minutes)": "workDuration",
-          "Break phase duration (in minutes)": "breakDuration",
-          "Load note text (boolean: true/false)": "loadNoteText"
+          "Customize setting by session (boolean: true/false)": "customizeSettingBySession",
+          "Load note text (boolean: true/false)": "loadNoteText",
+          "Work phase duration (number: in minutes)": "workDuration",
+          "Break phase duration (number: in minutes)": "breakDuration",
+          "End cycle warning duration (number: in minutes)": "endCycleWarningDuration"
         },
         noteTitleDashboard: "Focus Dashboard",
         noteTagDashboard: "plugins/amplefocus-alt",
@@ -1600,11 +1648,14 @@ ${content}`);
           // Comma-separated values
           "End Time"
         ],
+        customizeSettingsBySession: false,
+        loadNoteText: false,
         workDuration: 30 * 60 * 1e3,
         // ms
         breakDuration: 10 * 60 * 1e3,
         // ms
-        loadNoteText: false,
+        endCycleWarningDuration: 2 * 60 * 1e3,
+        // ms
         alwaysStopRunningTask: false,
         alwaysResumeOpenTask: false,
         initialQuestions: [
@@ -1801,8 +1852,20 @@ ${content}`);
           let dash = await _preStart(app, this.options.amplefocus, handlePastCycles);
           if (!dash)
             return;
+          await _promptCustomizeSettingBySession(app, this.options.amplefocus);
           const [startTime, cycleCount] = await _promptInput(app, this.options.amplefocus);
           await _focus(app, this.options.amplefocus, dash, startTime, Number(cycleCount), handlePastCycles);
+        } catch (err) {
+          console.log(err);
+          app.alert(err);
+          throw err;
+        }
+      },
+      "Edit Settings": async function(app) {
+        try {
+          console.log("Edit default settings...");
+          const forcePrompt = true;
+          await _promptCustomizeSettingBySession(app, this.options.amplefocus, forcePrompt);
         } catch (err) {
           console.log(err);
           app.alert(err);
