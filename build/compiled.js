@@ -527,49 +527,57 @@
   }
   async function _promptCustomizeSettingBySession(app, options, forcePrompt = false) {
     if (!forcePrompt) {
-      if (!options.customizeSettingsBySession) {
+      if (!app.settings["Customize setting by session (boolean: true/false)"]) {
+        console.log("Using default settings");
         return;
       }
     }
     let promptInput = [];
     promptInput.push({
-      label: "Customize Settings",
+      label: "Customize settings",
       type: "checkbox",
-      value: options.customizeSettingsBySession
+      value: app.settings["Customize setting by session (boolean: true/false)"] === "true"
     });
     promptInput.push({
       label: "Load note text",
       type: "checkbox",
-      value: options.loadNoteText
+      value: app.settings["Load note text (boolean: true/false)"] === "true"
     });
     promptInput.push({
       label: "Work Duration (in minutes)",
-      type: "number",
-      value: options.workDuration
+      type: "string",
+      value: app.settings["Work phase duration (number: in minutes)"]
     });
     promptInput.push({
       label: "Break Duration (in minutes)",
-      type: "number",
-      value: options.breakDuration
+      type: "string",
+      value: app.settings["Break phase duration (number: in minutes)"]
     });
     promptInput.push({
       label: "End Cycle Warning Duration (in minutes)",
-      type: "number",
-      value: options.endCycleWarningDuration
+      type: "string",
+      value: app.settings["End cycle warning duration (number: in minutes)"]
     });
     let result = await app.prompt(
+      "Update session settings",
       {
         inputs: promptInput
       }
     );
     if (result === null) {
       return;
+    } else {
+      options.customizeSettingsBySession = result[0];
+      options.loadNoteText = result[1];
+      options.workDuration = result[2] * 60 * 1e3;
+      options.breakDuration = result[3] * 60 * 1e3;
+      options.endCycleWarningDuration = result[4] * 60 * 1e3;
+      console.log("Customize setting by session (boolean: true/false)", options.customizeSettingsBySession);
+      console.log("Load note text (boolean: true/false)", options.loadNoteText);
+      console.log("Work phase duration (number: in minutes)", options.workDuration);
+      console.log("Break phase duration (number: in minutes)", options.breakDuration);
+      console.log("End cycle warning duration (number: in minutes)", options.endCycleWarningDuration);
     }
-    options.customizeSettingsBySession = result[0].value;
-    options.loadNoteText = result[1].value;
-    options.workDuration = result[2].value;
-    options.breakDuration = result[3].value;
-    options.endCycleWarningDuration = result[4].value;
   }
 
   // lib/utils.js
