@@ -527,12 +527,18 @@
   }
   async function _promptCustomizeSettingBySession(app, options, forcePrompt = false) {
     if (!forcePrompt) {
-      if (!app.settings["Customize setting by session (boolean: true/false)"]) {
+      if (app.settings["Customize setting by session (boolean: true/false)"] === "false") {
         console.log("Using default settings");
         return;
       }
     }
     let promptInput = [];
+    let saveSettingsAsDefault = false;
+    promptInput.push({
+      label: "Save session settings as new default?",
+      type: "checkbox",
+      value: forcePrompt
+    });
     promptInput.push({
       label: "Customize settings",
       type: "checkbox",
@@ -567,16 +573,25 @@
     if (result === null) {
       return;
     } else {
-      options.customizeSettingsBySession = result[0];
-      options.loadNoteText = result[1];
-      options.workDuration = result[2] * 60 * 1e3;
-      options.breakDuration = result[3] * 60 * 1e3;
-      options.endCycleWarningDuration = result[4] * 60 * 1e3;
+      saveSettingsAsDefault = result[0];
+      options.customizeSettingsBySession = result[1];
+      options.loadNoteText = result[2];
+      options.workDuration = result[3] * 60 * 1e3;
+      options.breakDuration = result[4] * 60 * 1e3;
+      options.endCycleWarningDuration = result[5] * 60 * 1e3;
+      if (saveSettingsAsDefault) {
+        console.log("Saving session settings as new default...");
+        await app.setSetting("Customize setting by session (boolean: true/false)", options.customizeSettingsBySession);
+        await app.setSetting("Load note text (boolean: true/false)", options.loadNoteText);
+        await app.setSetting("Work phase duration (number: in minutes)", options.workDuration / 60 / 1e3);
+        await app.setSetting("Break phase duration (number: in minutes)", options.breakDuration / 60 / 1e3);
+        await app.setSetting("End cycle warning duration (number: in minutes)", options.endCycleWarningDuration / 60 / 1e3);
+      }
       console.log("Customize setting by session (boolean: true/false)", options.customizeSettingsBySession);
       console.log("Load note text (boolean: true/false)", options.loadNoteText);
-      console.log("Work phase duration (number: in minutes)", options.workDuration);
-      console.log("Break phase duration (number: in minutes)", options.breakDuration);
-      console.log("End cycle warning duration (number: in minutes)", options.endCycleWarningDuration);
+      console.log("Work phase duration (number: in minutes)", options.workDuration / 60 / 1e3);
+      console.log("Break phase duration (number: in minutes)", options.breakDuration / 60 / 1e3);
+      console.log("End cycle warning duration (number: in minutes)", options.endCycleWarningDuration / 60 / 1e3);
     }
   }
 
@@ -683,17 +698,19 @@
         resolve();
       };
     });
-    for (let pair of Object.entries(options.settings)) {
-      let setting = pair[0];
-      let option = pair[1];
-      if (app.settings[setting] && setting.includes("number") && setting.includes("minutes")) {
-        options[option] = app.settings[setting] * 60 * 1e3;
-        console.log("convert number from minutes to ms", option, options[option]);
-      } else if (app.settings[setting] && setting.includes("boolean")) {
-        options[option] = app.settings[setting] === "true";
-        console.log("convert string to boolean", option, options[option]);
-      } else {
-        options[option] = app.settings[setting];
+    if (app.settings["Customize setting by session (boolean: true/false)"] === "false") {
+      for (let pair of Object.entries(options.settings)) {
+        let setting = pair[0];
+        let option = pair[1];
+        if (app.settings[setting] && setting.includes("number") && setting.includes("minutes")) {
+          options[option] = app.settings[setting] * 60 * 1e3;
+          console.log("convert number from minutes to ms", option, options[option]);
+        } else if (app.settings[setting] && setting.includes("boolean")) {
+          options[option] = app.settings[setting] === "true";
+          console.log("convert string to boolean", option, options[option]);
+        } else {
+          options[option] = app.settings[setting];
+        }
       }
     }
     markStopped();
