@@ -602,28 +602,29 @@
     );
     try {
       sound.play();
-      console.log("Bell sound triggered");
+      console.log("Bell sound triggered", Date.now().toLocaleTimeString("en-us"));
     } catch (err) {
       console.warn("Couldn't trigger bell sound");
     }
   }
 
   // lib/sleeps.js
-  function _cancellableSleep(ms, markStopped2, markStarted2, timerController2, bell = false) {
+  function _cancellableSleep(endTime2, warnTime = 0, markStopped2, markStarted2, timerController2, bell = false) {
     return new Promise((resolve, reject) => {
-      const bellTime = ms * 0.94;
-      if (ms < 0)
-        ms = 0;
+      if (endTime2 < 0)
+        endTime2 = 0;
+      if (warnTime < 0 || warnTime > endTime2)
+        warnTime = 0;
       const timeout = setTimeout(() => {
         resolve();
         markStopped2();
         console.log("Timer finished naturally");
-      }, ms);
+      }, endTime2);
       let bellTimeout;
       if (bell) {
         bellTimeout = setTimeout(() => {
           bellSound();
-        }, bellTime);
+        }, warnTime);
       }
       timerController2.signal.addEventListener("abort", () => {
         console.error("Timer finished forcefully");
@@ -828,7 +829,7 @@
     console.log("Starting focus cycle...");
     if (!firstCycle)
       firstCycle = 1;
-    let sessionHeadingName, workEndTime, breakEndTime, prompt, firstCycleStartTime;
+    let sessionHeadingName, workEndTime, warnEndTime, breakEndTime, prompt, firstCycleStartTime;
     firstCycleStartTime = _calculateEndTime(options, startTime, firstCycle - 1).endTime;
     if (resume) {
       sessionHeadingName = await findSessionHeadingName(startTime, app);
@@ -840,17 +841,27 @@
       sessionHeadingName = sessionHeadingName.slice(2);
       console.log("Created new session heading", sessionHeadingName);
       prompt = true;
-      status = "Waiting for session to start...";
+      let currentTime = _getCurrentTime();
+      if (currentTime < firstCycleStartTime) {
+        status = "Waiting for session to start...";
+        console.log(status);
+        await _handleWaitPhase(app, options, firstCycleStartTime);
+      } else {
+        status = "Starting partial session...";
+        console.log(status);
+      }
     }
-    workEndTime = /* @__PURE__ */ new Date();
+    console.log(`firstCycle: ${firstCycle}, cycles: ${cycles}`);
     breakEndTime = firstCycleStartTime;
-    console.log("Work end time", workEndTime);
-    console.log(`firstCycle: ${firstCycle}, cycles: ${cycles}`, firstCycle, cycles);
-    for (let currentCycle = firstCycle - 1; currentCycle <= cycles; currentCycle++) {
+    for (let currentCycle = firstCycle; currentCycle <= cycles; currentCycle++) {
       currentSessionCycle = currentCycle;
       console.log("Cycle loop", currentCycle);
+      status = "Working...";
+      workEndTime = new Date(breakEndTime.getTime() + options.workDuration);
+      warnEndTime = new Date(workEndTime.getTime() - options.endCycleWarningDuration);
+      breakEndTime = new Date(workEndTime.getTime() + options.breakDuration);
       try {
-        await _handleWorkPhase(app, workEndTime, currentCycle);
+        await _handleWorkPhase(app, options, dash, warnEndTime, workEndTime, currentCycle);
       } catch (error) {
         if (handleAbortSignal(error))
           break;
@@ -858,26 +869,14 @@
       if (currentCycle >= 1)
         status = "Take a break...";
       try {
-        if (currentCycle >= firstCycle) {
-          prompt = true;
-        }
-        await _handleBreakPhase(app, options, dash, breakEndTime, currentCycle, cycles, handlePastCycles, prompt);
+        await _handleBreakPhase(app, options, dash, breakEndTime, currentCycle, cycles, handlePastCycles);
       } catch (error) {
         if (handleAbortSignal(error))
           break;
       }
-      status = "Working...";
-      workEndTime = new Date(breakEndTime.getTime() + options.workDuration);
-      breakEndTime = new Date(workEndTime.getTime() + options.breakDuration);
       if (timerController.signal.aborted) {
         timerController = new AbortController();
       }
-    }
-    status = "Session finished. \u{1F389}";
-    if (state !== "PAUSED") {
-      await _writeEndTime(app, options, dash);
-    } else {
-      status = "Session paused...";
     }
   }
   async function _makeSessionHeading(app, startTime, cycleCount) {
@@ -931,10 +930,13 @@
       throw error;
     }
   }
-  async function _handleWorkPhase(app, workEndTime, cycleIndex) {
+  async function _handleWorkPhase(app, options, dash, warnEndTime, workEndTime, cycleIndex) {
     console.log(`Cycle ${cycleIndex}: Starting work phase...`);
+    let completion, energy, morale;
+    [completion, energy, morale] = await _promptCycleEndMetrics(options, app, 0);
+    await _logDashboardCycleEndMetrics(app, dash, energy, morale, completion, workEndTime, options);
     try {
-      await _sleepUntil(app, workEndTime, true);
+      await _sleepUntil(app, workEndTime, true, warnEndTime);
     } catch (error) {
       throw error;
     }
@@ -955,7 +957,7 @@
       }
       [completion, energy, morale] = await _promptCompletionEnergyMorale(
         app,
-        "Work phase completed. Did you complete the target for this cycle?",
+        "Cycle completed. Did you complete the target for this cycle?",
         cycleTarget
         // We display the user's goal for the cycle in the prompt so that they don't need to check manually
       );
@@ -973,11 +975,12 @@
     }
     return [completion, energy, morale];
   }
-  async function _logDashboardCycleEndMetrics(app, dash, energy, morale, completion, options) {
+  async function _logDashboardCycleEndMetrics(app, dash, energy, morale, completion, endTime2, options) {
     let tableDict = await _readDashboard(app, dash);
     tableDict = await _appendToTopTableCell(tableDict, "Energy Logs", energy);
     tableDict = await _appendToTopTableCell(tableDict, "Morale Logs", morale);
     tableDict = await _appendToTopTableCell(tableDict, "Completion Logs", completion);
+    tableDict = await _editTopTableCell(tableDict, "End Time", endTime2);
     energyValues = _getTopTableCell(tableDict, "Energy Logs").split(",");
     moraleValues = _getTopTableCell(tableDict, "Morale Logs").split(",");
     completionValues = _getTopTableCell(tableDict, "Completion Logs").split(",");
@@ -1037,24 +1040,12 @@ ${content}`);
         if (options.loadNoteText) {
           await _logJotPreviousAndNextCycleQuestions(previousCycle, app, dash, options, cycles, currentCycle);
         }
-        [completion, energy, morale] = await _promptCycleEndMetrics(options, app, previousCycle);
-        await _logDashboardCycleEndMetrics(app, dash, energy, morale, completion, options);
       }
     } else {
-      await _logDashboardCycleEndMetrics(app, dash, null, null, null, options);
+      console.log(`End Time ${breakEndTime}`);
+      await _logDashboardCycleEndMetrics(app, dash, null, null, null, breakEndTime, options);
     }
-    if (previousCycle === cycles) {
-      if (options.loadNoteText) {
-        await _handleSessionDebrief(app, options);
-      }
-      await _sleepUntil(app, /* @__PURE__ */ new Date());
-      console.log(`Session complete.`);
-      app.alert(`Session complete. Debrief and relax.`);
-    }
-    if (breakEndTime <= currentTime) {
-      return;
-    }
-    if (previousCycle < cycles) {
+    if (previousCycle <= cycles) {
       console.log(`Cycle ${previousCycle}: Starting break phase...`);
       try {
         await _sleepUntil(app, breakEndTime);
@@ -1064,8 +1055,26 @@ ${content}`);
       app.alert(`Cycle ${previousCycle}: Break phase completed. Start working!`);
       console.log(`Cycle ${previousCycle}: Break phase completed.`);
     }
+    if (previousCycle === cycles) {
+      [completion, energy, morale] = await _promptCycleEndMetrics(options, app, previousCycle);
+      await _logDashboardCycleEndMetrics(app, dash, energy, morale, completion, sessionEndTime, options);
+      console.log(`Session complete.`);
+      if (options.loadNoteText) {
+        app.alert(`Session complete. Debrief and relax.`);
+        await _handleSessionDebrief(app, options);
+      } else {
+        app.alert(`Session complete.`);
+      }
+    }
   }
-  async function _sleepUntil(app, endTime2, bell = false) {
+  async function _handleWaitPhase(app, options, startTime) {
+    try {
+      await _sleepUntil(app, startTime, true);
+    } catch (error) {
+      throw error;
+    }
+  }
+  async function _sleepUntil(app, endTime2, bell = false, warnTime = 0) {
     console.log(`Sleeping until ${endTime2}...`);
     app.openSidebarEmbed(0.66, {
       ampletime: { project: null },
@@ -1082,7 +1091,7 @@ ${content}`);
     });
     const sleepTime = endTime2.getTime() - _getCurrentTime().getTime();
     sleepUntil = endTime2;
-    await _cancellableSleep(sleepTime, markStopped, markStarted, timerController, bell);
+    await _cancellableSleep(sleepTime, warnTime, markStopped, markStarted, timerController, bell);
   }
 
   // lib/ampletime/entries.js
