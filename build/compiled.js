@@ -980,7 +980,7 @@
     tableDict = await _appendToTopTableCell(tableDict, "Energy Logs", energy);
     tableDict = await _appendToTopTableCell(tableDict, "Morale Logs", morale);
     tableDict = await _appendToTopTableCell(tableDict, "Completion Logs", completion);
-    tableDict = await _editTopTableCell(tableDict, "End Time", endTime2);
+    tableDict = await _editTopTableCell(tableDict, "End Time", _getISOStringFromDate(endTime2));
     energyValues = _getTopTableCell(tableDict, "Energy Logs").split(",");
     moraleValues = _getTopTableCell(tableDict, "Morale Logs").split(",");
     completionValues = _getTopTableCell(tableDict, "Completion Logs").split(",");
@@ -997,8 +997,7 @@
 ${content}`);
   }
   async function _handleSessionDebrief(app, options) {
-    await appendToSession(app, `
-## Session debrief`);
+    await appendToSession(app, `## Session debrief`);
     let content = [];
     for (let question of options.finalQuestions) {
       content.push(`- ${question}`);
@@ -1058,7 +1057,9 @@ ${content}`);
     if (previousCycle === cycles) {
       [completion, energy, morale] = await _promptCycleEndMetrics(options, app, previousCycle);
       await _logDashboardCycleEndMetrics(app, dash, energy, morale, completion, sessionEndTime, options);
-      console.log(`Session complete.`);
+      status = "Session complete";
+      console.log(status);
+      updateSideBarEmbed(app, sessionEndTime);
       if (options.loadNoteText) {
         app.alert(`Session complete. Debrief and relax.`);
         await _handleSessionDebrief(app, options);
@@ -1076,6 +1077,12 @@ ${content}`);
   }
   async function _sleepUntil(app, endTime2, bell = false, warnTime = 0) {
     console.log(`Sleeping until ${endTime2}...`);
+    updateSideBarEmbed(app, endTime2);
+    const sleepTime = endTime2.getTime() - _getCurrentTime().getTime();
+    sleepUntil = endTime2;
+    await _cancellableSleep(sleepTime, warnTime, markStopped, markStarted, timerController, bell);
+  }
+  function updateSideBarEmbed(app, endTime2) {
     app.openSidebarEmbed(0.66, {
       ampletime: { project: null },
       amplefocus: {
@@ -1089,9 +1096,6 @@ ${content}`);
         completionValues
       }
     });
-    const sleepTime = endTime2.getTime() - _getCurrentTime().getTime();
-    sleepUntil = endTime2;
-    await _cancellableSleep(sleepTime, warnTime, markStopped, markStarted, timerController, bell);
   }
 
   // lib/ampletime/entries.js
